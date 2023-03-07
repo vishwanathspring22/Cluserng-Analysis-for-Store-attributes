@@ -1,0 +1,241 @@
+---
+title: "Marketing Analytics Report"
+subtitle: "Cluserng Analysis for Store attributes"
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T, comment = NA, message = F, warning = F, fig.align = "center")
+options(pillar.sigfig = 7)
+options(scipen = 999)
+```
+
+```{r}
+library(magrittr ) 
+library(tidyverse)
+library(flexclust)
+```
+<font size="2"> Load the libraries</font>
+
+# Question-1) Read and inspect the data set. Provide a descriptive analysis for each of the variables in the data set.
+
+```{r} 
+office<- read.csv("office.csv")
+summary(office)
+glimpse(office)
+```
+
+<font size="2">This databse contains data of the 200 respondents and their choice of preferences when it comes to buy the office is equipment</font>
+
+  
+# Question-2) Make a new data object (e.g., a data.frame or tibble) for clustering that includes only the attitudinal variables from the original data set. Then normalise (use z-score standardisation) all variables in this new data object. Which variable has the smallest minimum value and which variable has the largest maximum value in the normalized data set?
+
+
+```{r}
+
+office_normalized<- scale(office[, c(
+                           "variety_of_choice",
+                           "electronics",
+                           "furniture",
+                           "quality_of_service",
+                           "low_prices",
+                           "return_policy"
+                           )]) %>% 
+  as_tibble() 
+
+```
+
+
+```{r}
+summary(office_normalized)
+```
+<font size="2"> Mean of the normalized attributes is zero always</font>
+<font size="2"> Electronics attribute has the maximum and minimum value </font>
+
+
+# Question-3) Run the hierarchical clustering algorithm using method = "ward.D2" on the normalised data and use set.seed(123)for reproducibility. Plot the dendogram. 
+
+<font size="2">Now let's compute the distances between data points (using euclidean distance)</font>
+
+```{r}
+
+distances <- dist(office_normalized, 
+                  method = "euclidean")
+
+as.matrix(distances)[1:5, 1:5] 
+```
+
+<font size="2">Run the hierarchical clustering algorithm (using `method = "ward.D"`) on the normalized data</font>
+
+```{r}
+hier_clust <- hclust(distances, method = "ward.D2") 
+```
+
+<font size="2">plot the dendogram of the hierarchical clustering process</font>
+```{r}
+plot(hier_clust)
+```
+
+<font size ="2">The office chooses to use 6 clusters after seeing the dendrogram and consulting with marketing. Using cutree, split the data into 6 clusters.</font>
+
+# Question-4) The office chooses to use 6 clusters after seeing the dendrogram and consulting with marketing. Using cutree, split the data into 6 clusters.
+```{r}
+
+plot(hier_clust)
+rect.hclust(hier_clust, k = 6, border = "skyblue")
+hiercut_obs <- cutree(hier_clust, k = 6)
+table(hiercut_obs)
+
+```
+
+<font size="2"> Plotted dendogram and split into 6 clusters using cuttree</font>
+
+# Question-5) Use the normalised data to calculate the means for each of the attitudinal variables per cluster. Use the flexclust package to generate a segment profile plot. Comment on whether any cluster memberships have changed, if any. Check the concordance between the hclust and as.kcca procedures.
+
+<font size="2">Group by cluster and calculate the average values in each of the variables.</font>
+
+```{r}
+office_normalized %>%
+  mutate(hiercut_obs = factor(hiercut_obs)) %>%
+  group_by(hiercut_obs) %>% 
+  mutate(n=n())%>%
+  summarise_all(~mean(.x)) %>%  
+  mutate(prop=n/sum(n))%>%
+  print(width = Inf) 
+
+options("install.lock"=FALSE)
+
+h_flexclust <- as.kcca(hier_clust, office_normalized, k = 6)
+
+table(hiercut_obs, clusters(h_flexclust))
+```
+<font size="2">After executing the above line kcca function, 4 cluster memberships have changed</font>
+
+<font size="2">Segmentation Profile Plot</font>
+```{r}
+barchart(h_flexclust, main = "Segment Profiles")
+```
+# Question-6) Describe the 6-cluster solution using the cluster numbers corresponding to the hierarchical clustering procedure.
+
+From the table output, 
+cluster 1 corresponds to cluster 5 in the hierarchical observations.
+cluster 2 corresponds to cluster 1 in the hierarchical observations.
+cluster 3 corresponds to cluster 2 in the hierarchical observations.
+cluster 4 corresponds to cluster 3 in the hierarchical observations.
+cluster 5 corresponds to cluster 6 in the hierarchical observations.
+cluster 6 corresponds to cluster 4 in the hierarchical observations.
+
+# Question-7) Comment on why you may decide to NOT proceed with this 6-cluster solution.
+
+In the 6-cluster solution, according to hierarchical clustering only 8 values are there in cluster-3. So will be it worth considering 6 clusters considering cluster-3. To proceed further 5-clusters are executed
+
+# Question-8) Generate a 5-cluster solution. How many observations are assigned to each cluster?
+
+```{r} 
+hier_clust_5 <- hclust(distances, method = "ward.D2")
+plot(hier_clust_5)
+rect.hclust(hier_clust_5, k = 5, border = "skyblue")
+hier_clust_obs_5 <- cutree(hier_clust_5, k = 5)
+table(hier_clust_obs_5)
+
+```
+<font size="2"> There are 5 clusters generated and using cuttree function it is split in the dendogram</font>
+
+
+# Question-9) Repeat the steps performed previously to describe the clusters for the 5-cluster solution (i.e., calculate cluster means and segmentation plot). Describe the 5-cluster solution using the cluster numbers corresponding to the hierarchical clustering procedure. Give “expressive” labels to the clusters
+
+```{r}
+
+```
+
+
+```{r}
+options("install.lock"=FALSE)
+
+office_normalized %>%
+  mutate(hier_clust_obs_5 = hier_clust_obs_5) %>%
+  group_by(hier_clust_obs_5) %>% 
+  mutate(n=n())%>%
+  mutate(prop=n/sum(n))%>%
+  summarise_all(~mean(.x)) %>% 
+  print(width = Inf) 
+
+hier_flex_5 <- as.kcca(hier_clust_5, office_normalized, k = 5)
+table(hier_clust_obs_5, clusters(hier_flex_5))
+
+barchart(hier_flex_5, main = "Segment Profiles")
+
+
+hier_clust_obs_5 <- factor(hier_clust_obs_5,
+              levels = c(1, 2, 3, 4, 5),
+              labels = c("quality_of_service Hierachy", "electronics Hierachy", "furniture Hierachy",
+                         "Professional_service Hierachy",
+                         "Non-Professional_service Hierachy"))
+
+```
+
+
+From the table output of 5 cluster solution.
+
+cluster 1 corresponds to cluster 4 in the hierarchical observations.
+cluster 2 corresponds to cluster 1 in the hierarchical observations.
+cluster 3 corresponds to cluster 2 in the hierarchical observations.
+cluster 4 corresponds to cluster 3 in the hierarchical observations.
+cluster 5 corresponds to cluster 5 in the hierarchical observations.
+
+
+
+
+# Question-10) Comment on why you may find this 5-cluster solution better than the previous 6-cluster solution.
+
+According to the calculations made in the previous observation, the 6 cluster's solution has a value of 8 in one segment, which is very low. Comparatively, in the 5 cluster solutions, the lowest values are 17. Because of this, 5 cluster solutions are preferable on a comparative basis.
+
+----
+
+# Question-12) Run the k-means clustering algorithm on the normalised data, creating 5 clusters. Use iter.max = 1000 and nstart = 100 and set.seed(123)for reproducibility. How many observations are assigned to each cluster?
+
+Let's now run the k-means clustering algorithm on the normalized data, again creating 5 clusters. Set the seed to 88 right before running the clustering algorithm, and set the argument `iter.max` to 1000.
+
+```{r}
+
+set.seed(123) 
+
+kmeans <- kmeans(office_normalized, 
+                       centers = 5, 
+                       iter.max = 1000,
+                       nstart = 100)
+
+
+kmeans_labels <- factor(
+  kmeans$cluster,
+  levels = c(1, 2, 3, 4, 5),
+  labels = c("quality_of_service K-means", "electronics K-means", "furniture K-means",
+             "Professional_service K-means",
+             "Non-Professional_service K-means"))
+
+table(kmeans$cluster)
+```
+
+<font size = "2">Observations noted from the cluster</font>
+
+# Question-13) Check the concordance between the hclust and kmeans procedures. What is the Hit Rate?
+
+```{r}
+table(kmeans$cluster, hier_clust_obs_5)
+```
+
+From the table output, 
+cluster 1 corresponds to cluster 5 in the hierarchical observations.
+cluster 2 corresponds to cluster 1 in the hierarchical observations.
+cluster 3 corresponds to cluster 2 in the hierarchical observations.
+cluster 4 corresponds to cluster 3 in the hierarchical observations.
+cluster 5 corresponds to cluster 4 in the hierarchical observations.
+
+```{r}
+hitrate <- (59+60+17+33+29)*100
+hitrate <- hitrate / 200
+hitrate
+```
+<font size ="2"> The hit rate observed to be 99</font>
+
+
